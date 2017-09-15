@@ -1,0 +1,185 @@
+#ifndef ACCUMULATEDHESSIAN_H
+#define ACCUMULATEDHESSIAN_H
+
+#include "util/all_util_include.h"
+#include "FullSystem/Settings.h"
+
+using namespace std;
+using namespace world3000;
+
+namespace SLAMSystem {
+
+
+// C, xi, a,b res   4, 6, 2, 1
+/* 是否优化相机内参, C4 */
+/* 直接法OR特征点法，(a,b) */
+
+/* 直接法且优化相机内参 */
+class AccumulateMatrix1313f
+{
+public:
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+public:
+    void init()
+    {
+        memset(topLeftL0, 0, sizeof(topLeftL0));
+        memset(topLeftL1, 0, sizeof(topLeftL1));
+        memset(topLeftL2, 0, sizeof(topLeftL2));
+
+        memset(topRightDataL0,0, sizeof(topRightDataL0));
+        memset(topRightDataL1,0, sizeof(topRightDataL1));
+        memset(topRightDataL2,0, sizeof(topRightDataL2));
+
+        memset(botRightDataL0,0, sizeof(botRightDataL0));
+        memset(botRightDataL1,0, sizeof(botRightDataL1));
+        memset(botRightDataL2,0, sizeof(botRightDataL2));
+
+        hNum = hNumL0 = hNumL1 = hNumL2 = 0;
+    }
+
+    void updateTopLeft(const float* const C4_u, const float* const xi6_u,
+                       const float* const C4_v, const float* const xi6_v,
+                       const Mat22f& J_I_d_p_2)
+    {
+        float a = J_I_d_p_2(0,0);
+        float b = J_I_d_p_2(0,1);
+        float c = J_I_d_p_2(1,1);
+
+        topLeftL0[0] += a * C4_u[0] * C4_u[0] + b * (C4_u[0] * C4_v[0] + C4_v[0] * C4_u[0]) + c * C4_v[0] * C4_v[0];
+        topLeftL0[1] += a * C4_u[1] * C4_u[0] + b * (C4_u[1] * C4_v[0] + C4_v[1] * C4_u[0]) + c * C4_v[1] * C4_v[0];
+        topLeftL0[2] += a * C4_u[2] * C4_u[0] + b * (C4_u[2] * C4_v[0] + C4_v[2] * C4_u[0]) + c * C4_v[2] * C4_v[0];
+        topLeftL0[3] += a * C4_u[3] * C4_u[0] + b * (C4_u[3] * C4_v[0] + C4_v[3] * C4_u[0]) + c * C4_v[3] * C4_v[0];
+        topLeftL0[4] += a * xi6_u[0] * C4_u[0] + b * (xi6_u[0] * C4_v[0] + xi6_v[0] * C4_u[0]) + c * xi6_v[0] * C4_v[0];
+        topLeftL0[5] += a*xi6_u[1]*C4_u[0] + c*xi6_v[1]*C4_v[0] +  b*(xi6_u[1]*C4_v[0] + xi6_v[1]*C4_u[0]);
+        topLeftL0[6] += a*xi6_u[2]*C4_u[0] + c*xi6_v[2]*C4_v[0] +  b*(xi6_u[2]*C4_v[0] + xi6_v[2]*C4_u[0]);
+        topLeftL0[7] += a*xi6_u[3]*C4_u[0] + c*xi6_v[3]*C4_v[0] +  b*(xi6_u[3]*C4_v[0] + xi6_v[3]*C4_u[0]);
+        topLeftL0[8] += a*xi6_u[4]*C4_u[0] + c*xi6_v[4]*C4_v[0] +  b*(xi6_u[4]*C4_v[0] + xi6_v[4]*C4_u[0]);
+        topLeftL0[9] += a*xi6_u[5]*C4_u[0] + c*xi6_v[5]*C4_v[0] +  b*(xi6_u[5]*C4_v[0] + xi6_v[5]*C4_u[0]);
+
+        topLeftL0[10] += a*C4_u[1]*C4_u[1] + c*C4_v[1]*C4_v[1] +  b*(C4_u[1]*C4_v[1] + C4_v[1]*C4_u[1]);
+        topLeftL0[11] += a*C4_u[2]*C4_u[1] + c*C4_v[2]*C4_v[1] +  b*(C4_u[2]*C4_v[1] + C4_v[2]*C4_u[1]);
+        topLeftL0[12] += a*C4_u[3]*C4_u[1] + c*C4_v[3]*C4_v[1] +  b*(C4_u[3]*C4_v[1] + C4_v[3]*C4_u[1]);
+        topLeftL0[13] += a*xi6_u[0]*C4_u[1] + c*xi6_v[0]*C4_v[1] +  b*(xi6_u[0]*C4_v[1] + xi6_v[0]*C4_u[1]);
+        topLeftL0[14] += a*xi6_u[1]*C4_u[1] + c*xi6_v[1]*C4_v[1] +  b*(xi6_u[1]*C4_v[1] + xi6_v[1]*C4_u[1]);
+        topLeftL0[15] += a*xi6_u[2]*C4_u[1] + c*xi6_v[2]*C4_v[1] +  b*(xi6_u[2]*C4_v[1] + xi6_v[2]*C4_u[1]);
+        topLeftL0[16] += a*xi6_u[3]*C4_u[1] + c*xi6_v[3]*C4_v[1] +  b*(xi6_u[3]*C4_v[1] + xi6_v[3]*C4_u[1]);
+        topLeftL0[17] += a*xi6_u[4]*C4_u[1] + c*xi6_v[4]*C4_v[1] +  b*(xi6_u[4]*C4_v[1] + xi6_v[4]*C4_u[1]);
+        topLeftL0[18] += a*xi6_u[5]*C4_u[1] + c*xi6_v[5]*C4_v[1] +  b*(xi6_u[5]*C4_v[1] + xi6_v[5]*C4_u[1]);
+
+        topLeftL0[19] += a*C4_u[2]*C4_u[2] + c*C4_v[2]*C4_v[2] +  b*(C4_u[2]*C4_v[2] + C4_v[2]*C4_u[2]);
+        topLeftL0[20] += a*C4_u[3]*C4_u[2] + c*C4_v[3]*C4_v[2] +  b*(C4_u[3]*C4_v[2] + C4_v[3]*C4_u[2]);
+        topLeftL0[21] += a*xi6_u[0]*C4_u[2] + c*xi6_v[0]*C4_v[2] +  b*(xi6_u[0]*C4_v[2] + xi6_v[0]*C4_u[2]);
+        topLeftL0[22] += a*xi6_u[1]*C4_u[2] + c*xi6_v[1]*C4_v[2] +  b*(xi6_u[1]*C4_v[2] + xi6_v[1]*C4_u[2]);
+        topLeftL0[23] += a*xi6_u[2]*C4_u[2] + c*xi6_v[2]*C4_v[2] +  b*(xi6_u[2]*C4_v[2] + xi6_v[2]*C4_u[2]);
+        topLeftL0[24] += a*xi6_u[3]*C4_u[2] + c*xi6_v[3]*C4_v[2] +  b*(xi6_u[3]*C4_v[2] + xi6_v[3]*C4_u[2]);
+        topLeftL0[25] += a*xi6_u[4]*C4_u[2] + c*xi6_v[4]*C4_v[2] +  b*(xi6_u[4]*C4_v[2] + xi6_v[4]*C4_u[2]);
+        topLeftL0[26] += a*xi6_u[5]*C4_u[2] + c*xi6_v[5]*C4_v[2] +  b*(xi6_u[5]*C4_v[2] + xi6_v[5]*C4_u[2]);
+
+        topLeftL0[27] += a*C4_u[3]*C4_u[3] + c*C4_v[3]*C4_v[3] +  b*(C4_u[3]*C4_v[3] + C4_v[3]*C4_u[3]);
+        topLeftL0[28] += a*xi6_u[0]*C4_u[3] + c*xi6_v[0]*C4_v[3] +  b*(xi6_u[0]*C4_v[3] + xi6_v[0]*C4_u[3]);
+        topLeftL0[29] += a*xi6_u[1]*C4_u[3] + c*xi6_v[1]*C4_v[3] +  b*(xi6_u[1]*C4_v[3] + xi6_v[1]*C4_u[3]);
+        topLeftL0[30] += a*xi6_u[2]*C4_u[3] + c*xi6_v[2]*C4_v[3] +  b*(xi6_u[2]*C4_v[3] + xi6_v[2]*C4_u[3]);
+        topLeftL0[31] += a*xi6_u[3]*C4_u[3] + c*xi6_v[3]*C4_v[3] +  b*(xi6_u[3]*C4_v[3] + xi6_v[3]*C4_u[3]);
+        topLeftL0[32] += a*xi6_u[4]*C4_u[3] + c*xi6_v[4]*C4_v[3] +  b*(xi6_u[4]*C4_v[3] + xi6_v[4]*C4_u[3]);
+        topLeftL0[33] += a*xi6_u[5]*C4_u[3] + c*xi6_v[5]*C4_v[3] +  b*(xi6_u[5]*C4_v[3] + xi6_v[5]*C4_u[3]);
+
+        Data[34] += a*xi6_u[0]*xi6_u[0] + c*xi6_v[0]*xi6_v[0] +  b*(xi6_u[0]*xi6_v[0] + xi6_v[0]*xi6_u[0]);
+        Data[35] += a*xi6_u[1]*xi6_u[0] + c*xi6_v[1]*xi6_v[0] +  b*(xi6_u[1]*xi6_v[0] + xi6_v[1]*xi6_u[0]);
+        Data[36] += a*xi6_u[2]*xi6_u[0] + c*xi6_v[2]*xi6_v[0] +  b*(xi6_u[2]*xi6_v[0] + xi6_v[2]*xi6_u[0]);
+        Data[37] += a*xi6_u[3]*xi6_u[0] + c*xi6_v[3]*xi6_v[0] +  b*(xi6_u[3]*xi6_v[0] + xi6_v[3]*xi6_u[0]);
+        Data[38] += a*xi6_u[4]*xi6_u[0] + c*xi6_v[4]*xi6_v[0] +  b*(xi6_u[4]*xi6_v[0] + xi6_v[4]*xi6_u[0]);
+        Data[39] += a*xi6_u[5]*xi6_u[0] + c*xi6_v[5]*xi6_v[0] +  b*(xi6_u[5]*xi6_v[0] + xi6_v[5]*xi6_u[0]);
+
+
+
+        Data[40] += a*xi6_u[1]*xi6_u[1] + c*xi6_v[1]*xi6_v[1] +  b*(xi6_u[1]*xi6_v[1] + xi6_v[1]*xi6_u[1]);
+        Data[41] += a*xi6_u[2]*xi6_u[1] + c*xi6_v[2]*xi6_v[1] +  b*(xi6_u[2]*xi6_v[1] + xi6_v[2]*xi6_u[1]);
+        Data[42] += a*xi6_u[3]*xi6_u[1] + c*xi6_v[3]*xi6_v[1] +  b*(xi6_u[3]*xi6_v[1] + xi6_v[3]*xi6_u[1]);
+        Data[43] += a*xi6_u[4]*xi6_u[1] + c*xi6_v[4]*xi6_v[1] +  b*(xi6_u[4]*xi6_v[1] + xi6_v[4]*xi6_u[1]);
+        Data[44] += a*xi6_u[5]*xi6_u[1] + c*xi6_v[5]*xi6_v[1] +  b*(xi6_u[5]*xi6_v[1] + xi6_v[5]*xi6_u[1]);
+
+
+        Data[45] += a*xi6_u[2]*xi6_u[2] + c*xi6_v[2]*xi6_v[2] +  b*(xi6_u[2]*xi6_v[2] + xi6_v[2]*xi6_u[2]);
+        Data[46] += a*xi6_u[3]*xi6_u[2] + c*xi6_v[3]*xi6_v[2] +  b*(xi6_u[3]*xi6_v[2] + xi6_v[3]*xi6_u[2]);
+        Data[47] += a*xi6_u[4]*xi6_u[2] + c*xi6_v[4]*xi6_v[2] +  b*(xi6_u[4]*xi6_v[2] + xi6_v[4]*xi6_u[2]);
+        Data[48] += a*xi6_u[5]*xi6_u[2] + c*xi6_v[5]*xi6_v[2] +  b*(xi6_u[5]*xi6_v[2] + xi6_v[5]*xi6_u[2]);
+
+
+        Data[49] += a*xi6_u[3]*xi6_u[3] + c*xi6_v[3]*xi6_v[3] +  b*(xi6_u[3]*xi6_v[3] + xi6_v[3]*xi6_u[3]);
+        Data[50] += a*xi6_u[4]*xi6_u[3] + c*xi6_v[4]*xi6_v[3] +  b*(xi6_u[4]*xi6_v[3] + xi6_v[4]*xi6_u[3]);
+        Data[51] += a*xi6_u[5]*xi6_u[3] + c*xi6_v[5]*xi6_v[3] +  b*(xi6_u[5]*xi6_v[3] + xi6_v[5]*xi6_u[3]);
+
+
+        Data[52] += a*xi6_u[4]*xi6_u[4] + c*xi6_v[4]*xi6_v[4] +  b*(xi6_u[4]*xi6_v[4] + xi6_v[4]*xi6_u[4]);
+        Data[53] += a*xi6_u[5]*xi6_u[4] + c*xi6_v[5]*xi6_v[4] +  b*(xi6_u[5]*xi6_v[4] + xi6_v[5]*xi6_u[4]);
+
+        Data[54] += a*xi6_u[5]*xi6_u[5] + c*xi6_v[5]*xi6_v[5] +  b*(xi6_u[5]*xi6_v[5] + xi6_v[5]*xi6_u[5]);
+
+    }
+
+//    void updateTopRight(const float* const C4_u, const float* const xi6_u,
+//                        const float* const C4_v, const float* const xi6_v,
+//                        const Mat
+
+
+    void done()
+    {
+
+    }
+
+public:
+    Mat1313f H;
+    size_t hNum;
+
+private:
+    float topLeftL0[60];
+    float topLeftL1[60];
+    float topLeftL2[60];               // 为什么是60, 32, 8??????
+
+    float topRightDataL0[32];
+    float topRightDataL1[32];
+    float topRightDataL2[32];
+
+    float botRightDataL0[8];
+    float botRightDataL1[8];
+    float botRightDataL2[8];
+
+    float hNumL0, hNumL1, hNumL2;
+
+    void shiftUp(bool force)
+    {
+
+    }
+};
+
+
+
+class AccumulatedTopHessian
+{
+public:
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+public:
+    AccumulatedTopHessian()
+    {
+        for(int thd_idx = 0; thd_idx < settings_ThreadNum; thd_idx++)
+        {
+            resNum[thd_idx]=0;
+            frameNum[thd_idx]=0;
+        }
+    }
+    ~AccumulatedTopHessian()
+    {
+
+    }
+    void setZero(int frameNum, int min = 0, int max = 1, Vec10* basicUnit = NULL, int thd_idx)
+    {
+
+    }
+
+public:
+    int resNum[settings_ThreadNum];
+    int frameNum[settings_ThreadNum];
+
+};
+}
+#endif // ACCUMULATEDHESSIAN_H
